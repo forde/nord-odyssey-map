@@ -1,6 +1,6 @@
 {
-  "name": "Creta Maris Map",
-  "short_name": "Creta Map",
+  "name": "Nord Odyssey Resort Map",
+  "short_name": "Odyssey Map",
   "description": "Illustrated resort map with live location.",
   "start_url": "/",
   "display": "standalone",
