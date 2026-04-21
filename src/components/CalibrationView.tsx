@@ -93,6 +93,8 @@ export default function CalibrationView() {
   const reposRef = useRef<ReposFn | null>(null);
 
   useEffect(() => {
+    // Hydrate from localStorage on mount — valid client-only pattern.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPlacement(loadPlacement());
     loadImageAspect(MAP_IMAGE).then(setAspect);
     setHydrated(true);

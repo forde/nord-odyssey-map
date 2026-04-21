@@ -19,6 +19,7 @@ import {
   requestOrientationPermission,
   subscribeHeading,
 } from "@/lib/heading";
+import PinsLayer from "@/components/PinsLayer";
 
 const MAP_IMAGE = "/map.png";
 
@@ -71,6 +72,8 @@ function RotatedImage({
       overlayRef.current?.remove();
       overlayRef.current = null;
     };
+    // Opacity handled separately to avoid re-creating the overlay on slider changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, p, aspect]);
 
   useEffect(() => {
@@ -138,9 +141,11 @@ function UserLocation({
   const arrowRef = useRef<L.Marker | null>(null);
   const renderRef = useRef<() => void>(() => {});
 
-  // Latest render logic — rebuilt on heading/bearing change but never
-  // triggers the geo-subscription effect below to tear down.
-  renderRef.current = () => {
+  // Latest render logic — kept in a ref so the geo-subscription effect below
+  // (which runs once per map) always calls the newest closure without needing
+  // to resubscribe when heading / mapBearing change. Ref is reassigned inside
+  // an effect to avoid mutating during render.
+  const render = () => {
     const pos = posRef.current;
     if (!pos) return;
     const ll = L.latLng(pos.latitude, pos.longitude);
@@ -193,6 +198,12 @@ function UserLocation({
       }).addTo(map);
     }
   };
+
+  // Keep the ref pointed at the latest render closure without mutating during
+  // the render phase (which the react-hooks/refs lint rule forbids).
+  useEffect(() => {
+    renderRef.current = render;
+  });
 
   // Geolocation + map events. Runs once per map — does NOT tear down when
   // heading / bearing change, so the blue dot stays on screen.
@@ -267,6 +278,9 @@ export default function MapView() {
   const mapRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
+    // Hydrate from localStorage + detect capabilities on mount — this is a
+    // valid set-state-in-effect pattern for client-only data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setP(loadPlacement());
     loadImageAspect(MAP_IMAGE).then(setAspect);
     const needs = needsOrientationPermission();
@@ -380,6 +394,7 @@ export default function MapView() {
             maxZoom={19}
           />
           <RotatedImage p={p} aspect={aspect} opacity={opacity} />
+          <PinsLayer />
           <UserLocation
             heading={heading}
             mapBearing={bearing}
