@@ -291,6 +291,23 @@ export default function MapView() {
   const [isStandalone, setIsStandalone] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
 
+  // First-run intro popup
+  const [showIntro, setShowIntro] = useState(false);
+  useEffect(() => {
+    try {
+      if (!window.localStorage.getItem("workation-map:intro-seen")) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setShowIntro(true);
+      }
+    } catch {}
+  }, []);
+  const dismissIntro = useCallback(() => {
+    try {
+      window.localStorage.setItem("workation-map:intro-seen", "1");
+    } catch {}
+    setShowIntro(false);
+  }, []);
+
   // Listen for the Chrome/Edge install prompt and detect iOS/standalone.
   useEffect(() => {
     const onBeforeInstall = (e: Event) => {
@@ -615,6 +632,27 @@ export default function MapView() {
                 Resort website ↗
               </a>
               <a
+                href='slack://user?team=T01DAUQSWTC&id=U09U8LX5U9E'
+                onClick={(e) => {
+                  // Fall back to email if Slack app isn't installed / doesn't open.
+                  const href = e.currentTarget.href;
+                  const t = setTimeout(() => {
+                    window.location.href =
+                      "mailto:konrad.wegrzyniak@nordsec.com?subject=Nord%20Odyssey%20Map%20feedback";
+                  }, 600);
+                  // Cancel the fallback if the page loses focus (Slack app opened).
+                  const cancel = () => {
+                    clearTimeout(t);
+                    window.removeEventListener("blur", cancel);
+                  };
+                  window.addEventListener("blur", cancel);
+                  void href;
+                }}
+                className='rounded px-3 py-2 text-neutral-800 hover:bg-neutral-100'
+              >
+                Leave feedback ↗
+              </a>
+              {/*<a
                 href='/calibrate'
                 className='rounded px-3 py-2 text-neutral-800 hover:bg-neutral-100'
               >
@@ -630,7 +668,7 @@ export default function MapView() {
                 className='rounded px-3 py-2 text-left text-neutral-800 hover:bg-neutral-100'
               >
                 Reset calibration
-              </button>
+              </button>*/}
               <a
                 href='https://creativecommons.org/licenses/by-nc-nd/4.0/'
                 target='_blank'
@@ -641,6 +679,111 @@ export default function MapView() {
               </a>
             </nav>
           </aside>
+        </>
+      )}
+
+      {/* First-run intro explaining map features */}
+      {showIntro && (
+        <>
+          <div
+            onClick={dismissIntro}
+            className='fixed inset-0 z-[1300] bg-black/50'
+            aria-hidden
+          />
+          <div
+            role='dialog'
+            aria-label='How to use'
+            style={{
+              paddingBottom: "calc(env(safe-area-inset-bottom) + 1.5rem)",
+            }}
+            className='fixed bottom-0 left-0 right-0 z-[1301] rounded-t-2xl bg-white p-6 shadow-2xl sm:left-1/2 sm:right-auto sm:bottom-auto sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-md sm:rounded-2xl'
+          >
+            <h2 className='mb-2 text-base font-semibold text-neutral-900'>
+              Welcome to the resort map
+            </h2>
+            <p className='mb-4 text-sm leading-relaxed text-neutral-600'>
+              Here&apos;s how it works:
+            </p>
+            <ul className='mb-5 space-y-3 text-sm leading-relaxed text-neutral-800'>
+              <li className='flex gap-3'>
+                <span
+                  aria-hidden
+                  className='mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[#30608D]/10 text-[#30608D]'
+                >
+                  <svg
+                    width='14'
+                    height='14'
+                    viewBox='0 0 24 24'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='2.4'
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                  >
+                    <path d='M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z' />
+                    <circle cx='12' cy='10' r='3' />
+                  </svg>
+                </span>
+                <span>
+                  <strong>Long-press</strong> anywhere on the map to drop a
+                  marker at that spot.
+                </span>
+              </li>
+              <li className='flex gap-3'>
+                <span
+                  aria-hidden
+                  className='mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[#30608D]/10 text-[#30608D]'
+                >
+                  <svg
+                    width='14'
+                    height='14'
+                    viewBox='0 0 24 24'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='2.4'
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                  >
+                    <polygon points='3 11 22 2 13 21 11 13 3 11' />
+                  </svg>
+                </span>
+                <span>
+                  Tap <strong>Navigate</strong> in the popup to open walking
+                  directions to that spot in Google Maps.
+                </span>
+              </li>
+              <li className='flex gap-3'>
+                <span
+                  aria-hidden
+                  className='mt-0.5 inline-flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[#30608D]/10 text-[#30608D]'
+                >
+                  <svg
+                    width='14'
+                    height='14'
+                    viewBox='0 0 24 24'
+                    fill='none'
+                    stroke='currentColor'
+                    strokeWidth='2.4'
+                    strokeLinecap='round'
+                    strokeLinejoin='round'
+                  >
+                    <path d='M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z' />
+                  </svg>
+                </span>
+                <span>
+                  Or tap <strong>Save as pin</strong>, give it a name, and it
+                  sticks around so you can find it later or navigate to it any
+                  time.
+                </span>
+              </li>
+            </ul>
+            <button
+              onClick={dismissIntro}
+              className='w-full rounded-md bg-[#30608D] px-3 py-2 text-sm font-medium text-white hover:bg-[#264f73]'
+            >
+              Got it
+            </button>
+          </div>
         </>
       )}
 
