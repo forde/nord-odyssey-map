@@ -92,17 +92,18 @@ function makeDotIcon(heading: number | null, mapBearing: number) {
       : `
         <div style="
           position:absolute;left:50%;top:50%;
-          width:60px;height:60px;
+          width:100px;height:100px;
           transform:translate(-50%,-50%) rotate(${heading + mapBearing}deg);
           pointer-events:none;">
-          <svg viewBox="-30 -30 60 60" width="60" height="60" style="overflow:visible">
+          <svg viewBox="-50 -50 100 100" width="100" height="100" style="overflow:visible">
             <defs>
-              <radialGradient id="cone-g" cx="0" cy="0" r="30" gradientUnits="userSpaceOnUse">
-                <stop offset="0" stop-color="#2563eb" stop-opacity="0.55"/>
+              <radialGradient id="cone-g" cx="0" cy="0" r="50" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stop-color="#2563eb" stop-opacity="0.9"/>
+                <stop offset="0.6" stop-color="#2563eb" stop-opacity="0.45"/>
                 <stop offset="1" stop-color="#2563eb" stop-opacity="0"/>
               </radialGradient>
             </defs>
-            <path d="M0,0 L-18,-26 A32,32 0 0 1 18,-26 Z" fill="url(#cone-g)"/>
+            <path d="M0,0 L-30,-44 A54,54 0 0 1 30,-44 Z" fill="url(#cone-g)"/>
           </svg>
         </div>`;
   return L.divIcon({
@@ -125,6 +126,12 @@ type GeoStatus =
   | { kind: "idle" }
   | { kind: "ok" }
   | { kind: "error"; code: number; message: string };
+
+// Chrome / Edge / Android surface this event when the PWA becomes installable.
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 function UserLocation({
   heading,
@@ -277,6 +284,37 @@ export default function MapView() {
   const [menuOpen, setMenuOpen] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
 
+  // PWA install state
+  const [installEvent, setInstallEvent] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
+
+  // Listen for the Chrome/Edge install prompt and detect iOS/standalone.
+  useEffect(() => {
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setInstallEvent(e as BeforeInstallPromptEvent);
+    };
+    const onInstalled = () => setInstallEvent(null);
+    window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("appinstalled", onInstalled);
+
+    const ua = navigator.userAgent;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsIOS(/iPad|iPhone|iPod/.test(ua));
+    setIsStandalone(
+      window.matchMedia("(display-mode: standalone)").matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true,
+    );
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
+
   useEffect(() => {
     // Hydrate from localStorage + detect capabilities on mount — this is a
     // valid set-state-in-effect pattern for client-only data.
@@ -317,6 +355,17 @@ export default function MapView() {
     const c = deriveCenter(p, aspect);
     map.setView(L.latLng(c.lat, c.lng), newZoom, { animate: true });
   }, [p, aspect]);
+
+  const canInstall = !isStandalone && (installEvent != null || isIOS);
+  const handleInstallClick = useCallback(async () => {
+    if (installEvent) {
+      await installEvent.prompt();
+      const { outcome } = await installEvent.userChoice;
+      if (outcome === "accepted") setInstallEvent(null);
+    } else if (isIOS) {
+      setShowIOSGuide(true);
+    }
+  }, [installEvent, isIOS]);
 
   const enableCompass = useCallback(async () => {
     const ok = await requestOrientationPermission();
@@ -425,43 +474,56 @@ export default function MapView() {
 
         {/* Bottom-right stack: opacity slider above the footer. */}
         <div className='pointer-events-none absolute right-2 bottom-2 z-[1000] flex flex-col items-end gap-2'>
-          <div className='pointer-events-auto flex items-center gap-2 rounded-2xl bg-white/90 px-3 py-2 shadow-lg ring-1 ring-black/5 backdrop-blur'>
-            <button
-              onClick={fitImage}
-              aria-label='Fit entire map in view'
-              title='Fit entire map in view'
-              className='rounded-lg p-1.5 text-neutral-700 transition hover:bg-neutral-100 active:scale-95'
-            >
-              <svg
-                width='18'
-                height='18'
-                viewBox='0 0 24 24'
-                fill='none'
-                stroke='currentColor'
-                strokeWidth='2'
-                strokeLinecap='round'
-                strokeLinejoin='round'
+          <div className='pointer-events-auto flex items-center w-full justify-between gap-2'>
+            {canInstall && (
+              <button
+                type='button'
+                onClick={handleInstallClick}
+                aria-label='Install app to home screen'
+                title='Install app to home screen'
+                className='flex items-center rounded-2xl bg-[#30608D] h-[46px] px-6 py-2 text-[16px] font-semibold text-white shadow-lg ring-1 ring-black/5 backdrop-blur transition hover:bg-[#264f73]'
               >
-                <polyline points='8 3 3 3 3 8' />
-                <polyline points='21 8 21 3 16 3' />
-                <polyline points='3 16 3 21 8 21' />
-                <polyline points='16 21 21 21 21 16' />
-              </svg>
-            </button>
-            <input
-              type='range'
-              min={0}
-              max={1}
-              step={0.01}
-              value={opacity}
-              onChange={(e) => setOpacity(parseFloat(e.target.value))}
-              className='range-slider'
-              style={{ ["--fill" as string]: `${opacity * 100}%` }}
-              aria-label='Artwork opacity'
-            />
-            <span className='min-w-[3ch] text-right text-xs font-semibold tabular-nums text-neutral-700'>
-              {Math.round(opacity * 100)}%
-            </span>
+                Install
+              </button>
+            )}
+            <div className='flex items-center gap-2 rounded-2xl bg-white/90 px-3 py-2 shadow-lg ring-1 ring-black/5 backdrop-blur'>
+              <button
+                onClick={fitImage}
+                aria-label='Fit entire map in view'
+                title='Fit entire map in view'
+                className='rounded-lg p-1.5 text-neutral-700 transition hover:bg-neutral-100 active:scale-95'
+              >
+                <svg
+                  width='18'
+                  height='18'
+                  viewBox='0 0 24 24'
+                  fill='none'
+                  stroke='currentColor'
+                  strokeWidth='2'
+                  strokeLinecap='round'
+                  strokeLinejoin='round'
+                >
+                  <polyline points='8 3 3 3 3 8' />
+                  <polyline points='21 8 21 3 16 3' />
+                  <polyline points='3 16 3 21 8 21' />
+                  <polyline points='16 21 21 21 21 16' />
+                </svg>
+              </button>
+              <input
+                type='range'
+                min={0}
+                max={1}
+                step={0.01}
+                value={opacity}
+                onChange={(e) => setOpacity(parseFloat(e.target.value))}
+                className='range-slider'
+                style={{ ["--fill" as string]: `${opacity * 100}%` }}
+                aria-label='Artwork opacity'
+              />
+              <span className='min-w-[3ch] text-right text-xs font-semibold tabular-nums text-neutral-700'>
+                {Math.round(opacity * 100)}%
+              </span>
+            </div>
           </div>
           <footer className='pointer-events-auto max-w-[95vw] rounded bg-white/80 px-2 py-1 text-right text-[10px] leading-tight text-neutral-700 shadow-sm backdrop-blur'>
             Map Artwork by Thomas Staridas (Stanides Geography), 2025 Edition.
@@ -550,6 +612,45 @@ export default function MapView() {
               </a>
             </nav>
           </aside>
+        </>
+      )}
+
+      {/* iOS install instructions (no beforeinstallprompt on Safari) */}
+      {showIOSGuide && (
+        <>
+          <div
+            onClick={() => setShowIOSGuide(false)}
+            className='fixed inset-0 z-[1300] bg-black/50'
+            aria-hidden
+          />
+          <div
+            role='dialog'
+            aria-label='Install instructions'
+            className='fixed bottom-0 left-0 right-0 z-[1301] rounded-t-2xl bg-white p-6 shadow-2xl sm:left-1/2 sm:right-auto sm:bottom-auto sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-sm sm:rounded-2xl'
+          >
+            <h2 className='mb-3 text-base font-semibold text-neutral-900'>
+              Add to Home Screen
+            </h2>
+            <ol className='mb-4 list-decimal space-y-2 pl-5 text-sm text-neutral-700'>
+              <li>
+                Tap the <strong>Share</strong> button (the square with an
+                up-arrow) at the bottom of Safari.
+              </li>
+              <li>
+                Scroll down and tap <strong>Add to Home Screen</strong>.
+              </li>
+              <li>
+                Tap <strong>Add</strong> in the top-right. The app icon will
+                appear on your home screen.
+              </li>
+            </ol>
+            <button
+              onClick={() => setShowIOSGuide(false)}
+              className='w-full rounded-md bg-[#30608D] px-3 py-2 text-sm font-medium text-white hover:bg-[#264f73]'
+            >
+              Got it
+            </button>
+          </div>
         </>
       )}
     </div>
