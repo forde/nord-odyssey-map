@@ -386,7 +386,14 @@ export default function MapView() {
 
   return (
     <div className='flex h-dvh w-dvw flex-col bg-stone-100'>
-      <header className='z-[1100] flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-2 text-neutral-900 shadow-sm'>
+      <header
+        className='z-[1100] flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-2 text-neutral-900 shadow-sm'
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top) + 0.5rem)",
+          paddingLeft: "calc(env(safe-area-inset-left) + 1rem)",
+          paddingRight: "calc(env(safe-area-inset-right) + 1rem)",
+        }}
+      >
         <div className='flex flex-col items-start leading-tight gap-1'>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -434,6 +441,13 @@ export default function MapView() {
           bearing={bearing}
           rotateControl={false}
           touchRotate={false}
+          // Disable pane CSS zoom animation so the rotated image overlay,
+          // OSM tiles, and markers all update in a single frame at the new
+          // zoom level. On iOS Safari the CSS-animated pane doesn't
+          // composite the rotated matrix transform reliably, producing a
+          // "lag + snap" effect — this avoids it.
+          zoomAnimation={false}
+          markerZoomAnimation={false}
           className='h-full w-full'
           style={{ background: "#f5f5f4" }}
         >
@@ -452,7 +466,10 @@ export default function MapView() {
         </MapContainer>
 
         {geoStatus.kind === "error" && (
-          <div className='pointer-events-auto absolute top-3 left-1/2 z-[1000] -translate-x-1/2 rounded-full bg-red-600/90 px-4 py-2 text-xs font-medium text-white shadow-lg'>
+          <div
+            style={{ top: "calc(env(safe-area-inset-top) + 0.75rem)" }}
+            className='pointer-events-auto absolute left-1/2 z-[1000] -translate-x-1/2 rounded-full bg-red-600/90 px-4 py-2 text-xs font-medium text-white shadow-lg'
+          >
             {geoStatus.code === 1
               ? "Location permission denied — enable it in site settings."
               : geoStatus.code === 2
@@ -466,14 +483,21 @@ export default function MapView() {
         {needsPermission && (
           <button
             onClick={enableCompass}
-            className='pointer-events-auto absolute top-3 left-1/2 z-[1000] -translate-x-1/2 rounded-full bg-sky-600/95 px-4 py-2 text-xs font-medium text-white shadow-lg hover:bg-sky-500'
+            style={{ top: "calc(env(safe-area-inset-top) + 0.75rem)" }}
+            className='pointer-events-auto absolute left-1/2 z-[1000] -translate-x-1/2 rounded-full bg-sky-600/95 px-4 py-2 text-xs font-medium text-white shadow-lg hover:bg-sky-500'
           >
             🧭 Tap to enable compass
           </button>
         )}
 
         {/* Bottom-right stack: opacity slider above the footer. */}
-        <div className='pointer-events-none absolute right-2 bottom-2 z-[1000] flex flex-col items-end gap-2'>
+        <div
+          className='pointer-events-none absolute right-2 bottom-2 z-[1000] flex flex-col items-end gap-2'
+          style={{
+            right: "calc(env(safe-area-inset-right) + 0.5rem)",
+            bottom: "calc(env(safe-area-inset-bottom) + 0.5rem)",
+          }}
+        >
           <div className='pointer-events-auto flex items-center w-full justify-between gap-2'>
             {canInstall && (
               <button
@@ -553,6 +577,11 @@ export default function MapView() {
             role='dialog'
             aria-label='Menu'
             className='fixed top-0 right-0 z-[1201] flex h-dvh w-72 max-w-[85vw] flex-col bg-white shadow-2xl'
+            style={{
+              paddingTop: "env(safe-area-inset-top)",
+              paddingBottom: "env(safe-area-inset-bottom)",
+              paddingRight: "env(safe-area-inset-right)",
+            }}
           >
             <div className='flex items-center justify-between border-b border-neutral-200 px-4 py-3'>
               <span className='font-semibold text-neutral-800'>Menu</span>
@@ -626,6 +655,9 @@ export default function MapView() {
           <div
             role='dialog'
             aria-label='Install instructions'
+            style={{
+              paddingBottom: "calc(env(safe-area-inset-bottom) + 1.5rem)",
+            }}
             className='fixed bottom-0 left-0 right-0 z-[1301] rounded-t-2xl bg-white p-6 shadow-2xl sm:left-1/2 sm:right-auto sm:bottom-auto sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:max-w-sm sm:rounded-2xl'
           >
             <h2 className='mb-3 text-base font-semibold text-neutral-900'>
