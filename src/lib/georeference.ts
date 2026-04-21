@@ -11,8 +11,14 @@ export type Placement = {
 // Calibrated placement for Creta Maris Beach Resort, Hersonissos, Crete.
 // Produced in /calibrate. Re-run the calibrator if the artwork changes.
 export const DEFAULT_PLACEMENT: Placement = {
-  topLeft: { lat: 35.324929713920554, lng: 25.38067102432251 },
-  topRight: { lat: 35.32720997060588, lng: 25.38778424263001 },
+  topLeft: {
+    lat: 35.324929713920554,
+    lng: 25.38067102432251,
+  },
+  topRight: {
+    lat: 35.32720997060588,
+    lng: 25.38778424263001,
+  },
 };
 
 export const RESORT_CENTER: LatLng = { lat: 35.3165, lng: 25.409 };
